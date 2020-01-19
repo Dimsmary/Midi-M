@@ -16,14 +16,7 @@
 #define line7 15
 #define line8 1
 
-int midi_note[10][12];
 
-CRGB leds[32];
-byte arrow;
-
-CRGB led_color  = CRGB(133,0,133);
-CRGB led_color2  = CRGB(133,133,0);
-CRGB led_white = CRGB(0,0,0);
 
 //按键初始编码：
 // |11-|21|31|41-|51|61|71|81|
@@ -32,18 +25,18 @@ CRGB led_white = CRGB(0,0,0);
 // |14 |24|34|44 |54|64|74|84|
 
 //钢琴编码：
-// |xx|22|42|xx|72|92 |112|xx|
-// |12|32|52|62|82|102|122|xx|
-// |xx|21|41|xx|71|91 |111|xx|
-// |11|31|51|61|81|101|121|xx|
+// |05|22|42|04|72|92 |112|00|
+// |12|32|52|62|82|102|122|01|
+// |06|21|41|xx|71|91 |111|02|
+// |11|31|51|61|81|101|121|03|
 
 //定义按键按放命令
-#define key11_release key_release(0,0);
-#define key11_press key_press(0,0);
+#define key11_release key_release(5,0);
+#define key11_press key_press(5,0);
 #define key12_press key_press(12,7);
 #define key12_release key_release(12,7);
-#define key13_press key_press(0,8);
-#define key13_release key_release(0,8);
+#define key13_press key_press(6,8);
+#define key13_release key_release(6,8);
 #define key14_press key_press(11,15);
 #define key14_release key_release(11,15);
 //2
@@ -65,8 +58,8 @@ CRGB led_white = CRGB(0,0,0);
 #define key34_press key_press(51,13);
 #define key34_release key_release(51,13);
 //4
-#define key41_release key_release(0,3);
-#define key41_press key_press(0,3);
+#define key41_release key_release(4,3);
+#define key41_press key_press(4,3);
 #define key42_press key_press(62,4);
 #define key42_release key_release(62,4);
 #define key43_press key_press(0,11);
@@ -103,12 +96,12 @@ CRGB led_white = CRGB(0,0,0);
 //8
 #define key81_release key_release(0,19);
 #define key81_press key_press(0,19);
-#define key82_press key_press(0,20);
-#define key82_release key_release(0,20);
-#define key83_press key_press(0,27);
-#define key83_release key_release(0,27);
-#define key84_press key_press(0,28);
-#define key84_release key_release(0,28);
+#define key82_press key_press(1,20);
+#define key82_release key_release(1,20);
+#define key83_press key_press(2,27);
+#define key83_release key_release(2,27);
+#define key84_press key_press(3,28);
+#define key84_release key_release(3,28);
 
 //定义记录变量
 byte key11;
@@ -144,7 +137,18 @@ byte key82;
 byte key83;
 byte key84;
 
-// 状态变量 0为显示 1为只弹 2为接收灯光弹
+// midi音符存储
+int midi_note[10][12];
+// LED存储
+CRGB leds[32];
+byte arrow;
+
+CRGB led_color  = CRGB(133,0,133);
+CRGB led_color2  = CRGB(133,133,0);
+CRGB led_color3 = CRGB(133,22,55);
+CRGB led_color4 = CRGB(133,50,188);
+CRGB led_white = CRGB(0,0,0);
+// 音阶和速度
 byte note_level = 2;
 byte note_vol = 100;
 // 常用MIDI命令
@@ -165,6 +169,14 @@ void setup() {
   }
   Serial.begin(38400);
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+  leds[3] = led_color3;
+  leds[19] = led_color3;
+  leds[20] = led_color2;
+  leds[27] = led_color3;
+  leds[28] = led_color3;
+  leds[0] = led_color4;
+  leds[8] = led_color4;
+  FastLED.show();
   //初始化LED
   //扫描输入IO设置
   pinMode(col1, INPUT_PULLUP);
@@ -199,15 +211,48 @@ ISR(TIMER1_COMPA_vect)          // Timer1中断处理
   key_scan();
   TCCR1B |= (1 << CS12);        // 启动时钟
 }
+
 void loop() {
     if (Serial.available() > 0) {
     incomingByte = Serial.read();
     if (incomingByte == 144 || incomingByte == 128){
         unsigned char sta = incomingByte;
         incomingByte = Serial.read();
-        incomingByte = incomingByte % 12;
+        income_light(incomingByte, sta);
+    }
+  }
+}
+// midi接收处理
+void income_light(int note,int on_off){
+  int deal_note;
+  int level,sta;
+  byte up_down;
+  // 判断属于哪个音阶
+  sta = 0;
+   if(note < 12){
+    level = 0; 
+  }
+  else if(note < 24 && note > 11){
+    level = 1;
+  }
+  else{
+    sta = note / 24;
+    note = note % 24;
+    if(note > 11){
+        level = (2*sta) + 1;
+        up_down = 1;
+    }
+    else{
+        level = 2*sta;
+        up_down = 0;
+    }
+  }
+  level_switch(sta);
+  
+  deal_note = note % 12;
         int led_num;
-        switch(incomingByte){
+    if(up_down){
+        switch(deal_note){
           case 0:
             led_num = 7;
             break;
@@ -225,7 +270,7 @@ void loop() {
             break;
           case 5:
             led_num = 4;
-            break;
+          break;
           case 6:
             led_num = 16;
             break;
@@ -245,45 +290,126 @@ void loop() {
             led_num = 21;
             break;
         }
-          if(sta == 144){
-            leds[led_num] = led_color;
-            FastLED.show();
-          }
-          else{
-            leds[led_num] = led_white;
-            FastLED.show();
-          }
     }
-  }
-}
+    else{
+         switch(deal_note){
+          case 0:
+            led_num = 15;
+            break;
+          case 1:
+            led_num = 9;
+            break;
+          case 2:
+            led_num = 14;
+            break;
+          case 3:
+            led_num = 10;
+            break;
+          case 4:
+            led_num = 13;
+            break;
+          case 5:
+            led_num = 12;
+          break;
+          case 6:
+            led_num = 27;
+            break;
+          case 7:
+            led_num = 28;
+            break;
+          case 8:
+            led_num = 26;
+            break;
+          case 9:
+            led_num = 29;
+            break;
+          case 10:
+            led_num = 25;
+            break;
+          case 11:
+            led_num = 30;
+            break;
+        }
+    }
 
+        if(on_off == 144){
+          leds[led_num] = led_color;
+        }
+        else{
+          leds[led_num] = led_white;
+        }
+    FastLED.show();
+}
 // midi输送
 void MIDImessage(int command, int MIDInote, int MIDIvelocity) {
   Serial.write(command);
   Serial.write(MIDInote);
   Serial.write(MIDIvelocity);
 }
+
+// 音高切换函数
+void level_switch(int id){
+      note_level = id * 2;
+      leds[3] = led_color3;
+      leds[19] = led_color3;
+      leds[20] = led_color3;
+      leds[27] = led_color3;
+      leds[28] = led_color3;
+      switch(id){
+        case 0:
+          leds[19] = led_color2;
+          break;
+        case 1:
+          leds[20] = led_color2;
+          break;
+        case 2:
+          leds[27] = led_color2;
+          break;
+        case 3:
+          leds[28] = led_color2;
+          break;
+        case 4:
+          leds[3] = led_color2;
+          break;
+      }
+}
 // 按键处理函数
 void key_press(char id,char led_id){
+  if(id > 10){
   leds[led_id] = led_color;
-  FastLED.show();
   unsigned char row,col;
   int note;
   col = id / 10;
   row = (id % 10) - 1; // 获取按键信息
   note = midi_note[row + note_level][col - 1];
   MIDImessage(noteON, note, note_vol);
-}
+  }
+  // 切换音高
+  else if(id < 5){
+      level_switch(id);
+    }
+    else{
+      if(id == 5 && note_vol < 125){
+        note_vol += 25;
+      }
+      else if(id == 6 && note_vol > 25){
+        note_vol -= 25;
+      }
+    }
+    FastLED.show();
+  }
 
 void key_release(char id,char led_id){
+  if(id > 10){
   leds[led_id] = led_white;
-  FastLED.show();
   unsigned char row,col;
   int note;
   col = id / 10;
   row = (id % 10) - 1;
   note = midi_note[row + note_level][col - 1];
   MIDImessage(noteOFF, note, note_vol);
+  }
+    FastLED.show();
 }
 
 // 按键扫描函数
