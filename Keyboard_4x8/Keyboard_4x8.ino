@@ -236,6 +236,8 @@ void income_light(int note,int on_off){
     level = 1;
   }
   else{
+    // note += 12;
+    // 抬升
     sta = note / 24;
     note = note % 24;
     if(note > 11){
@@ -248,7 +250,6 @@ void income_light(int note,int on_off){
     }
   }
   level_switch(sta);
-  
   deal_note = note % 12;
         int led_num;
     if(up_down){
@@ -312,22 +313,22 @@ void income_light(int note,int on_off){
             led_num = 12;
           break;
           case 6:
-            led_num = 27;
+            led_num = 24;
             break;
           case 7:
-            led_num = 28;
+            led_num = 31;
             break;
           case 8:
-            led_num = 26;
-            break;
-          case 9:
-            led_num = 29;
-            break;
-          case 10:
             led_num = 25;
             break;
-          case 11:
+          case 9:
             led_num = 30;
+            break;
+          case 10:
+            led_num = 26;
+            break;
+          case 11:
+            led_num = 29;
             break;
         }
     }
