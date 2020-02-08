@@ -62,8 +62,8 @@
 #define key41_press key_press(4,3);
 #define key42_press key_press(62,4);
 #define key42_release key_release(62,4);
-#define key43_press key_press(0,11);
-#define key43_release key_release(0,11);
+#define key43_press key_press(7,11);
+#define key43_release key_release(7,11);
 #define key44_press key_press(61,12);
 #define key44_release key_release(61,12);
 //5
@@ -396,6 +396,9 @@ void key_press(char id,char led_id){
       else if(id == 6 && note_vol > 25){
         note_vol -= 25;
       }
+      else if(id == 7){
+        MIDImessage(noteON, 70, note_vol);
+      }
     }
     FastLED.show();
   }
@@ -408,7 +411,10 @@ void key_release(char id,char led_id){
   col = id / 10;
   row = (id % 10) - 1;
   note = midi_note[row + note_level][col - 1];
-  MIDImessage(noteOFF, note, note_vol);
+  MIDImessage(noteOFF, note, 0);
+  }
+  else if(id == 7){
+    MIDImessage(noteOFF, 70, 0);
   }
     FastLED.show();
 }
